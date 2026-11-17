@@ -1,36 +1,67 @@
 # Criterios de aceptación — BankOS
 
-## Estado
-- **Implementado (auditado):** Funcionalidades no implementadas; los criterios siguientes son **objetivo** y deben ejecutarse cuando existan las capacidades correspondientes.
-- **Ejecución:** **No ejecutadas** durante esta auditoría.
+> **Estado (2026-11-17):** criterios del backend MVP implementado. `mobile/` no fue modificado.
 
-## Pruebas de aceptación obligatorias
+## Autenticación
 
-| Prueba | Resultado esperado |
-|---|---|
-| Login tenant A | Acceso únicamente a recursos/datos del tenant A. |
-| Login tenant B | Acceso únicamente a recursos/datos del tenant B. |
-| Consultar cuenta de otro tenant | Acceso denegado (403/404 según política definida), sin filtración de datos. |
-| Retiro sin saldo | Operación rechazada sin modificar saldos ni generar efectos inconsistentes. |
-| Transferencia exitosa | Débito y crédito atómicos; saldos consistentes; movimientos registrados. |
-| Transferencia multimoneda | Conversión y comisión correctas según tasas/configuración; asientos coherentes. |
-| Reintento con misma llave | Una sola operación financiera efectiva; respuesta consistente (idempotencia). |
-| Peticiones simultáneas | Sin doble ejecución ni corrupción de saldos (control de concurrencia). |
-| Cuenta inactiva | Operación rechazada de acuerdo con reglas de estado. |
-| Auditoría | Registro persistido con información relevante (actor, tenant, acción, recurso, resultado, correlación). |
-| Webhook | Evento enviado/registrado después de confirmar la operación en base de datos. |
+- [x] Login con `tenant_code + email + password`.
+- [x] Token JWT con `tenant_id` y roles.
+- [x] `/auth/me` devuelve usuario y tenant.
+- [x] Credenciales inválidas responden `401`.
+- [x] Token de otra institución no accede a recursos ajenos.
 
-## Criterios transversales
+## Multitenancy
 
-- Todas las respuestas incluyen `correlation_id` y siguen el formato estándar.
-- Operaciones financieras incluyen y respetan `Idempotency-Key`.
-- No se puede operar sobre recursos de otro tenant.
-- Los saldos y movimientos son reconstruibles y consistentes.
+- [x] Todo dato de negocio está acotado por tenant.
+- [x] El tenant se toma del JWT.
+- [x] Acceso cruzado responde `404`.
+- [x] Seed con múltiples instituciones.
 
-## Evidencia requerida (cuando se ejecuten)
-- Identificador de caso/prueba, entorno, datos de prueba, pasos, resultado observado, logs/capturas relevantes y `correlation_id` asociado.
-- Registrar desviaciones y defectos con severidad e impacto.
+## Operaciones financieras
 
-## Pendientes
-- Definir datos de prueba, precondiciones exactas y automatización de estos escenarios.
-- Acordar códigos HTTP/códigos de negocio definitivos para cada rechazo. 
+- [x] Depósito, retiro y transferencia.
+- [x] Preview de transferencia con tasa y comisión.
+- [x] Saldo insuficiente rechazado.
+- [x] Moneda incorrecta rechazada.
+- [x] Sin sobregiro.
+- [x] Importes con `BigDecimal`.
+- [x] Bloqueo pesimista y orden determinista.
+- [x] Movimientos contables persistidos.
+
+## Idempotencia
+
+- [x] `Idempotency-Key` obligatorio.
+- [x] Misma llave y cuerpo → misma respuesta.
+- [x] Misma llave y cuerpo distinto → `409`.
+- [x] Concurrencia serializada con advisory lock.
+
+## Historial y auditoría
+
+- [x] Historial paginado.
+- [x] Filtros opcionales por cuenta, tipo y fechas.
+- [x] Orden por fecha descendente.
+- [x] Auditoría por tenant.
+- [x] Outbox de webhooks.
+
+## API
+
+- [x] Respuestas con `success/code/message/data/correlation_id`.
+- [x] JSON `snake_case`.
+- [x] OpenAPI y Swagger.
+- [x] Health con PostgreSQL y Redis.
+
+## Pendiente de aceptación
+
+- [ ] Refresh tokens y logout global.
+- [ ] Rate limiting.
+- [ ] RLS.
+- [ ] Pruebas de carga y concurrencia.
+- [ ] Integración con `mobile/`.
+- [ ] CI/CD.
+
+## Evidencia
+
+- `backend/src/test/java/com/bankos/integration/TransactionApiIntegrationTest.java`
+- `backend/src/test/java/com/bankos/common/money/MoneyUtilsTest.java`
+- [Testing](testing-strategy.md)
+- [Definition of Done](definition-of-done.md)

@@ -1,79 +1,62 @@
 # Manejo de errores — BankOS
 
-## Estado
-- **Implementado (auditado):** No hay manejo de errores de API implementado (sin backend ni cliente HTTP configurado).
-- **Objetivo:** Errores consistentes, trazables y seguros en backend y frontend.
+> **Estado (2026-11-17):** implementado en el backend. La fuente canónica está en [`backend/docs/api/error-handling.md`](../../backend/docs/api/error-handling.md).
 
-## Formato de error estándar (objetivo)
+## Formato
+
+Todas las respuestas de error usan el mismo sobre:
 
 ```json
 {
   "success": false,
-  "code": "INSUFFICIENT_FUNDS",
-  "message": "Saldo insuficiente",
+  "code": "ACCOUNT_NOT_FOUND",
+  "message": "Cuenta no encontrada",
   "data": null,
-  "correlation_id": "uuid"
+  "correlation_id": "7f4c3d2e-..."
 }
 ```
 
-- `code`: identificador estable para manejo programático (frontend/tests).
-- `message`: mensaje claro para usuario/desarrollador, sin exponer detalles sensibles.
-- `correlation_id`: permite rastrear la solicitud en logs.
+- `code` es estable y apto para lógica del cliente.
+- `message` es legible para humanos.
+- `correlation_id` permite correlacionar con logs.
+- No se exponen stack traces ni detalles internos.
 
-## Backend (propuesto)
+## Códigos HTTP
 
-### Principios
-- Manejo centralizado de excepciones (p. ej. `@RestControllerAdvice`).
-- Mapear excepciones de dominio/validación/seguridad a códigos HTTP y `code` de negocio coherentes.
-- Incluir/propagar `X-Correlation-ID` (generar si no llega, según política) y devolverlo en `correlation_id`.
-- No exponer stack traces, SQL, ni detalles internos en respuestas.
+| HTTP | Uso |
+|---|---|
+| `400` | Validación, headers faltantes o parámetros inválidos. |
+| `401` | Credenciales inválidas o token ausente/expirado. |
+| `403` | Autenticado sin permiso. |
+| `404` | Recurso inexistente o de otro tenant. |
+| `409` | Conflicto de idempotencia o estado. |
+| `422` | Regla de negocio no satisfecha. |
+| `500` | Error no controlado. |
+| `503` | Dependencia no disponible. |
 
-### Categorías y mapeo orientativo
+## Códigos de negocio principales
 
-| Situación | HTTP (sugerido) | `code` ejemplo |
-|---|---:|---|
-| Error de validación de entrada | 400 | `VALIDATION_ERROR` |
-| Credenciales inválidas | 401 | `INVALID_CREDENTIALS` |
-| Token ausente/inválido/expirado | 401 | `UNAUTHORIZED` / `TOKEN_EXPIRED` |
-| Sin permisos o acceso a otro tenant | 403 | `FORBIDDEN` / `TENANT_ACCESS_DENIED` |
-| Recurso no encontrado | 404 | `*_NOT_FOUND` |
-| Conflicto de estado/negocio | 409 | `IDEMPOTENCY_CONFLICT`, `CONFLICT` |
-| Regla financiera (saldo insuficiente) | 422 o 409 (definir) | `INSUFFICIENT_FUNDS` |
-| Cuenta inactiva/bloqueada | 422 o 403 (definir) | `ACCOUNT_INACTIVE`, `ACCOUNT_BLOCKED` |
-| Límite de tasa excedido | 429 | `RATE_LIMITED` |
-| Error interno | 500 | `INTERNAL_ERROR` |
+`VALIDATION_ERROR`, `INVALID_CREDENTIALS`, `UNAUTHORIZED`, `FORBIDDEN`, `TENANT_NOT_FOUND`, `USER_NOT_FOUND`, `CUSTOMER_NOT_FOUND`, `ACCOUNT_NOT_FOUND`, `ACCOUNT_NOT_ACTIVE`, `INSUFFICIENT_FUNDS`, `CURRENCY_MISMATCH`, `EXCHANGE_RATE_NOT_FOUND`, `IDEMPOTENCY_KEY_REQUIRED`, `IDEMPOTENCY_CONFLICT`, `TRANSACTION_NOT_FOUND`, `WEBHOOK_NOT_FOUND`, `INTERNAL_ERROR`.
 
-> Los códigos HTTP y de negocio exactos son **pendientes de estandarización**; deben ser consistentes en toda la API.
+## Idempotencia
 
-### Errores financieros y de concurrencia
-- Rechazar operaciones inválidas sin modificar saldos (atomicidad).
-- En conflictos de idempotencia, responder de forma determinista (misma respuesta previa o error controlado, según diseño).
-- Proteger contra condiciones de carrera con transacciones y bloqueos adecuados.
+- Falta `Idempotency-Key` → `400 IDEMPOTENCY_KEY_REQUIRED`.
+- Misma llave + mismo cuerpo → `200` con la respuesta original.
+- Misma llave + cuerpo distinto → `409 IDEMPOTENCY_CONFLICT`.
 
-## Frontend (propuesto)
+## Aislamiento
 
-### Principios (Dio + Riverpod)
-- Interceptores Dio para:
-  - Inyectar headers (`Authorization`, `X-Correlation-ID`, `Idempotency-Key` cuando aplique).
-  - Normalizar errores de red/timeout/HTTP a un modelo de error común.
-- Reintentos **solo cuando sean seguros**; operaciones financieras deben reutilizar `Idempotency-Key` y mismo body.
-- Manejo de sesión expirada: limpiar estado seguro y redirigir a `/login` vía GoRouter.
-- Presentar mensajes claros al usuario sin exponer información sensible.
+Un recurso de otro tenant responde `404` para no revelar su existencia.
 
-### Tipos de error sugeridos (pendiente de implementación)
-- `NetworkFailure` (sin conexión, timeout)
-- `UnauthorizedFailure` (401, sesión expirada)
-- `ForbiddenFailure` (403)
-- `ValidationFailure` (400, detalles por campo si `data` lo incluye)
-- `BusinessFailure` (códigos de dominio como `INSUFFICIENT_FUNDS`)
-- `ServerFailure` (5xx)
+## Frontend
 
-## Trazabilidad
-- Registrar `correlation_id`, tenant (sin datos sensibles), endpoint y resultado en logs de backend.
-- Propagar `X-Correlation-ID` extremo a extremo para diagnóstico.
+- Mapear `code` a mensajes de UI; no mostrar `message` técnico sin contexto.
+- Conservar `correlation_id` en reportes de soporte.
+- No reintentar operaciones financieras con una llave distinta si ya se envió una.
+- Renovar sesión solo si existe refresh token (pendiente).
 
-## Pendientes
-- Catálogo definitivo de códigos de error.
-- Estructura de `data` para errores de validación (campos/errores).
-- Política de reintentos, backoff y timeouts en cliente.
-- Integración con observabilidad (cuando exista). 
+## Documentación relacionada
+
+- [Manejo de errores del backend](../../backend/docs/api/error-handling.md)
+- [Contratos](api-contracts.md)
+- [API overview](api-overview.md)

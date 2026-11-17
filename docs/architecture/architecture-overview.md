@@ -1,30 +1,35 @@
 # Visión general de arquitectura — BankOS
 
 ## Estado
-- **Implementado (auditado):** Ningún componente de la arquitectura objetivo está implementado. El repositorio contiene un esqueleto Flutter y un directorio `backend/` vacío.
-- **Decisión objetivo:** Arquitectura descrita en este documento. Todo lo no marcado como implementado es **propuesto/pendiente**.
+
+- **Backend implementado:** monolito modular Java 21 / Spring Boot 3.5, API REST `/api/v1`, PostgreSQL 16, Redis 7, Flyway, JWT, idempotencia, auditoría y outbox de webhooks.
+- **Frontend:** `mobile/` conserva su estado actual. **No fue modificado ni conectado** al backend en esta fase.
+- **Alcance actual:** backend independiente, ejecutable y verificable por sí solo.
+- **Pendiente:** integración móvil, refresh tokens, RLS, rate limiting, conciliación contable, CI/CD y endurecimiento productivo.
 
 ## Objetivo arquitectónico
 
 BankOS es una plataforma BaaS multitenant compuesta por:
-- **Frontend móvil:** Flutter (Dart), arquitectura feature-first.
-- **Backend:** Monolito modular en Java 21 / Spring Boot 3.5.x.
-- **Persistencia:** PostgreSQL (fuente de verdad).
-- **Cache/soporte operativo:** Redis (sesiones/cache/idempotencia/soporte según diseño final).
-- **Comunicación:** API REST sobre HTTP con JSON (`/api/v1`).
-- **Repositorio:** Monorepo con frontend y backend independientes.
 
-## Diagrama general (objetivo)
+- **Backend:** monolito modular en Java 21 / Spring Boot 3.5.x.
+- **Persistencia:** PostgreSQL como fuente de verdad.
+- **Soporte operativo:** Redis.
+- **Comunicación:** API REST sobre HTTP con JSON (`/api/v1`).
+- **Frontend móvil:** Flutter (Dart), feature-first; se integrará en una fase futura.
+- **Repositorio:** monorepo con frontend y backend independientes.
+
+## Diagrama general
 
 ```mermaid
 flowchart TB
     subgraph Client["Cliente"]
-        FL["Flutter (Dart)\nRiverpod + GoRouter + Dio"]
+        FL["Flutter (estado actual, sin integrar)"]
+        HTTP["curl / Swagger / pruebas"]
     end
 
     subgraph Backend["Spring Boot (Java 21) - Monolito modular"]
         API["API REST /api/v1"]
-        AUTH["Authentication"]
+        AUTH["Auth / JWT"]
         TEN["Tenants"]
         USR["Users"]
         CUS["Customers"]
@@ -33,7 +38,7 @@ flowchart TB
         IDEM["Idempotency"]
         SET["Settings"]
         AUD["Audit"]
-        WH["Webhooks"]
+        WH["Webhooks / Outbox"]
         API --> AUTH
         API --> TEN
         API --> USR
@@ -49,10 +54,11 @@ flowchart TB
     subgraph Data["Datos e infraestructura"]
         PG[(PostgreSQL)]
         RD[(Redis)]
-        WRK["Worker de webhooks"]
+        EXT["Webhooks externos"]
     end
 
-    FL -->|"HTTP / JSON + JWT + X-Correlation-ID\n+ Idempotency-Key (financieras)"| API
+    FL -.->|integración futura| API
+    HTTP -->|"HTTP / JSON + JWT + X-Correlation-ID\n+ Idempotency-Key (financieras)"| API
     AUTH --> PG
     TEN --> PG
     USR --> PG
@@ -61,105 +67,119 @@ flowchart TB
     TRX --> PG
     SET --> PG
     AUD --> PG
-    WH --> PG
-    IDEM --> RD
     IDEM --> PG
-    WH --> WRK
-    WRK --> RD
-    WRK --> PG
+    IDEM --> RD
+    WH --> PG
+    WH -->|dispatcher programado| EXT
 ```
 
-## Responsabilidades de componentes (objetivo)
+## Responsabilidades de componentes
 
-| Componente | Responsabilidad |
-|---|---|
-| Flutter (Dart) | UI/UX, navegación (GoRouter), estado (Riverpod), consumo de API (Dio), almacenamiento seguro de sesión, biometría (Local Auth), generación de identificadores de operación (UUID). **No contiene lógica financiera.** |
-| Spring Boot API | Exposición de endpoints REST, autenticación/autorización, validación, orquestación de casos de uso, reglas de negocio y financieras, aislamiento multitenant. |
-| Módulos de dominio | `tenants`, `authentication`, `users`, `customers`, `accounts`, `transactions`, `idempotency`, `settings`, `audit`, `webhooks` (ver detalle en arquitectura backend). |
-| PostgreSQL | Persistencia transaccional, integridad referencial, fuente de verdad de datos financieros y operativos. |
-| Redis | Soporte para idempotencia/cache/datos efímeros y coordinación de workers (diseño pendiente de detalle). |
-| Worker de webhooks | Envío asíncrono de eventos de webhook **después** de confirmar la operación en BD (objetivo). |
-| Docker Compose | Orquestación local de API, PostgreSQL, Redis y worker (pendiente de implementación). |
+| Componente | Responsabilidad | Estado |
+|---|---|---|
+| Flutter (Dart) | UI/UX, navegación, estado, consumo de API, almacenamiento seguro de sesión. No contiene lógica financiera. | Existente, no integrado |
+| Spring Boot API | Endpoints REST, autenticación/autorización, validación, reglas de negocio, aislamiento multitenant. | Implementado |
+| Módulos de dominio | `tenants`, `auth`, `users`, `customers`, `accounts`, `transactions`, `idempotency`, `settings`, `audit`, `webhooks`. | Implementado |
+| PostgreSQL | Persistencia transaccional, integridad referencial, fuente de verdad. | Implementado |
+| Redis | Soporte auxiliar; PostgreSQL sigue siendo la fuente de verdad. | Implementado |
+| Webhooks | Outbox en PostgreSQL + dispatcher programado en la aplicación. | Implementado (MVP) |
+| Docker Compose | API + PostgreSQL + Redis con healthchecks. | Implementado |
 
-## Comunicación Flutter ↔ Spring Boot (objetivo)
+## Modelo multi-banco (Opción A)
 
-- **Protocolo:** HTTP/HTTPS, JSON (`Content-Type: application/json`).
+- Cada institución es un tenant independiente.
+- Cada usuario pertenece a un solo tenant.
+- Login por institución: `tenant_code + email + password`.
+- El cliente guarda un token por institución y cambia de sesión sin volver a autenticarse.
+- El `tenant_id` se toma del JWT, nunca del cliente.
+- `PLATFORM_ADMIN` pertenece al tenant reservado `PLATFORM`.
+- Roles: `PLATFORM_ADMIN`, `TENANT_ADMIN`, `OPERATOR`, `AUDITOR`.
+
+Ver [modelo multi-banco](multi-bank-model.md).
+
+## Comunicación cliente ↔ backend
+
+- **Protocolo:** HTTP/HTTPS, JSON.
 - **Base path:** `/api/v1`.
-- **Headers generales:** `Authorization: Bearer <JWT>` (cuando aplique), `X-Correlation-ID: <UUID>`.
-- **Operaciones financieras:** además `Idempotency-Key: <UUID>`; la misma llave y el mismo cuerpo deben conservarse en reintentos seguros.
-- **Errores y respuestas:** formato estandarizado (`success`, `code`, `message`, `data`, `correlation_id`) definido en la documentación de API.
-- **Estado actual:** No hay cliente Dio configurado ni endpoints backend implementados.
+- **Headers:** `Authorization: Bearer <JWT>`, `X-Correlation-ID`.
+- **Operaciones financieras:** `Idempotency-Key` obligatorio; conservar llave y cuerpo en reintentos.
+- **Respuestas:** `success`, `code`, `message`, `data`, `correlation_id`.
+- **Estado actual:** el backend está listo para integración; `mobile/` no consume estos endpoints todavía.
 
-## Interacción Spring Boot, PostgreSQL y Redis (objetivo)
+## Interacción con PostgreSQL y Redis
 
-- **Spring Boot → PostgreSQL:** vía Spring Data JPA/Hibernate; transacciones SQL para operaciones financieras; migraciones con Flyway.
-- **Spring Boot → Redis:** vía Spring Data Redis para casos como idempotencia/cache (diseño específico pendiente).
-- **Consistencia:** PostgreSQL es la fuente de verdad. Redis no debe reemplazar la persistencia ni la validación de integridad financiera.
-- **Estado actual:** Ninguna integración configurada.
+- **Spring Boot → PostgreSQL:** Spring Data JPA/Hibernate, transacciones SQL y migraciones Flyway.
+- **Spring Boot → Redis:** Spring Data Redis para soporte auxiliar.
+- **Consistencia:** PostgreSQL es la fuente de verdad; Redis no reemplaza la persistencia financiera.
+- **Bloqueos:** cuentas con `PESSIMISTIC_WRITE`; sin sobregiro en el MVP.
 
-## Flujo de autenticación (objetivo, propuesto)
+## Flujo de autenticación
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant U as Usuario
-    participant F as Flutter (GoRouter/Riverpod)
+    participant C as Cliente
     participant A as API /auth
-    participant S as Security/JWT
     participant DB as PostgreSQL
 
-    U->>F: Ingresa credenciales
-    F->>A: POST /api/v1/auth/login (X-Correlation-ID)
+    U->>C: tenant_code + email + password
+    C->>A: POST /api/v1/auth/login
     A->>DB: Validar tenant/usuario/credenciales
-    DB-->>A: Usuario y roles
-    A->>S: Generar JWT (claims: sub, tenant, roles, exp)
-    S-->>A: Access token
-    A-->>F: Respuesta estandarizada + token
-    F->>F: Guardar token en Flutter Secure Storage
-    F->>F: Actualizar estado de sesión (Riverpod)
-    F->>F: Redirección por GoRouter (guards)
+    DB-->>A: Usuario, tenant y roles
+    A-->>C: access_token + user + tenant (branding)
+    C->>C: Guardar token por tenant_code
+    C->>A: Authorization: Bearer <token>
 ```
 
-- **Pendiente:** Definir refresh tokens, expiración exacta, mecanismo de sesión expirada y estrategia de revocación (si aplica).
+- **No implementado:** refresh tokens, revocación de sesiones y bloqueo por intentos fallidos.
 
-## Flujo de operación financiera (objetivo, propuesto)
+## Flujo de operación financiera
 
-1. Cliente genera `Idempotency-Key` (UUID) y `X-Correlation-ID` antes de la operación; los conserva ante reintentos.
-2. Flutter envía solicitud autenticada a `/api/v1/...` con headers requeridos.
-3. Backend valida JWT, extrae `tenant` del contexto autenticado (nunca del body), valida permisos y estado de cuentas.
-4. Módulo de idempotencia verifica si la llave ya fue procesada para el mismo contexto/operación.
-5. Servicio de transacciones ejecuta lógica dentro de transacción SQL con bloqueos de fila cuando corresponda.
-6. Se persisten movimientos contables (`transaction_entries`) y se actualizan saldos de forma consistente.
-7. Se registra auditoría.
-8. Se confirma la transacción; eventos de webhook se despachan después de la confirmación (vía worker).
-9. API responde con formato estandarizado.
+1. Cliente genera `Idempotency-Key` y `X-Correlation-ID`.
+2. Envía solicitud autenticada a `/api/v1/transactions/...`.
+3. El backend valida JWT, extrae `tenant_id`, valida permisos y estado de cuentas.
+4. Verifica idempotencia y toma advisory lock.
+5. Bloquea cuentas con `PESSIMISTIC_WRITE`.
+6. Calcula con `BigDecimal`, actualiza saldos y crea movimientos contables.
+7. Registra auditoría y evento outbox en la misma transacción.
+8. Confirma la transacción y responde.
+9. El dispatcher envía webhooks después del commit.
 
-> **Regla:** Las operaciones deben permitir reconstruir cambios de saldo a partir de movimientos contables.
+## Aislamiento entre instituciones
 
-## Aislamiento entre instituciones (multitenancy, objetivo)
+- Aislamiento lógico por `tenant_id` en entidades y consultas.
+- `tenant_id` desde el contexto autenticado, nunca del payload.
+- Acceso cruzado responde `404` para no revelar existencia.
+- **Pendiente:** RLS de PostgreSQL y claves Redis con prefijo de tenant.
 
-- Aislamiento lógico por `tenant_id` en entidades correspondientes.
-- `tenant_id` se obtiene del contexto autenticado (JWT/filtro de seguridad), **nunca** del payload enviado por Flutter.
-- Todas las consultas y operaciones deben filtrar por tenant; acceso cruzado debe resultar en denegación.
-- **Pendiente:** Estrategia concreta (filtro global Hibernate, especificaciones, políticas por repositorio) y pruebas de aislamiento.
+## Gestión de errores
 
-## Gestión de errores (objetivo)
+- Respuestas estandarizadas con `code`, `message`, `correlation_id`.
+- Manejo centralizado con `@RestControllerAdvice`.
+- Códigos documentados en `docs/api/error-handling.md`.
+- El backend no expone stack traces.
 
-- Respuestas de error estandarizadas con `code`, `message`, `correlation_id`.
-- Manejo centralizado de excepciones en backend (`@ControllerAdvice` u equivalente, propuesto).
-- En Flutter, manejo centralizado en capa de red/errores (interceptores Dio y mapeo de errores), sin exponer detalles sensibles.
-- Ver detalle en `docs/api/error-handling.md`.
+## Despliegue
 
-## Estrategia de despliegue (objetivo, pendiente)
-
-- **Local/desarrollo:** Docker Compose con servicios `api`, `postgres`, `redis`, `webhook-worker` (no implementado).
-- **Hackatón:** ejecución local integrada; priorizar reproducibilidad del entorno.
-- **Producción:** **pendiente de decisión** (orquestador, CI/CD, gestión de secretos, TLS, observabilidad).
+- **Local/desarrollo:** Docker Compose con `backend`, `postgres` y `redis`.
+- **Seed demo:** perfil `dev` (`V100__dev_seed.sql`).
+- **Producción:** pendiente de decisión (orquestador, CI/CD, secretos, TLS, observabilidad).
 
 ## Decisiones pendientes
 
-- Definición exacta de uso de Redis (idempotencia, cache, colas) y persistencia de llaves de idempotencia.
-- Estrategia de refresh token y manejo de sesión expirada en móvil.
-- Topología final del worker de webhooks y mecanismo de reintentos/entrega.
-- Configuración de CORS, rate limiting y observabilidad (logs, métricas, trazas).
-- Pipeline de CI/CD y protecciones de ramas en GitHub (no verificadas). 
+- Refresh tokens y manejo de sesión expirada.
+- RLS y cifrado por tenant.
+- Topología del worker de webhooks y cola durable.
+- Rate limiting, observabilidad y trazas distribuidas.
+- CI/CD y protecciones de ramas.
+- Integración de `mobile/` con el contrato actual.
+
+## Documentación relacionada
+
+- [Arquitectura del backend](../../backend/docs/architecture/architecture-overview.md)
+- [API implementada](../../backend/docs/api/api-overview.md)
+- [Contratos](../../backend/docs/api/api-contracts.md)
+- [Seguridad](../../backend/docs/security/authentication.md)
+- [Multitenancy](../../backend/docs/security/multitenancy.md)
+- [Docker](../../backend/docs/infrastructure/docker-setup.md)

@@ -1,27 +1,38 @@
-# Definition of Done (DoD) — BankOS
+# Definition of Done — BankOS
 
-Una tarea **solamente estará terminada** cuando se cumplan todos los criterios aplicables:
+> **Estado (2026-11-17):** aplicable al backend implementado. `mobile/` no se modificó.
 
-## Implementación y calidad
-- [ ] El código está implementado y alineado con la arquitectura definida.
-- [ ] Las pruebas correspondientes han sido ejecutadas (unitarias/integración/manuales según aplique) y sus resultados están documentados en el PR.
-- [ ] No existen errores de compilación en los componentes afectados.
-- [ ] No hay secretos, credenciales ni tokens expuestos en el código o configuración versionada.
-- [ ] Se respetan las convenciones de codificación (Java/Flutter/PostgreSQL) y el flujo Git.
+## Backend
 
-## Seguridad y dominio (cuando aplique)
-- [ ] Se valida el `tenant` desde el contexto autenticado (nunca desde el cliente).
-- [ ] Se respetan permisos/roles en backend.
-- [ ] Las operaciones financieras son atómicas, idempotentes (si aplica) y no violan reglas de negocio.
-- [ ] No se exponen entidades JPA ni detalles sensibles.
+- [x] Compila con Java 21 / Maven.
+- [x] `mvn -B test` pasa (3 unitarias + 4 de integración).
+- [x] Migraciones Flyway aplican desde cero.
+- [x] Docker Compose levanta API, PostgreSQL y Redis.
+- [x] `/actuator/health` responde `UP`.
+- [x] Login por institución y `/auth/me`.
+- [x] Aislamiento entre tenants verificado.
+- [x] Depósito, retiro, transferencia y preview.
+- [x] Idempotencia con replay y conflicto.
+- [x] Historial con filtros opcionales.
+- [x] Auditoría persistida.
+- [x] Outbox de webhooks.
+- [x] Swagger/OpenAPI disponible.
+- [x] Manejo de errores estandarizado.
+- [x] README y documentación actualizados.
+- [x] `mobile/` sin cambios.
 
-## Documentación y revisión
-- [ ] La documentación relevante en `docs/` y/o contratos de API está actualizada cuando corresponde.
-- [ ] El Pull Request está creado con la plantilla completa y evidencia de pruebas.
-- [ ] Otro integrante ha revisado el Pull Request.
-- [ ] El Pull Request está aprobado.
-- [ ] Los cambios están integrados en `develop`.
+## Pendiente para producción
 
-## Notas
-- Si alguna verificación no aplica o no pudo ejecutarse, debe indicarse explícitamente en el PR con la justificación y el riesgo asociado.
-- El cumplimiento del DoD no sustituye las pruebas de aceptación ni la validación de integración previa a `main`. 
+- [ ] Refresh tokens y revocación.
+- [ ] Rate limiting.
+- [ ] RLS / cifrado por tenant.
+- [ ] Pruebas de concurrencia, contrato y carga.
+- [ ] CI/CD y Maven Wrapper.
+- [ ] Observabilidad completa (métricas, trazas, alertas).
+- [ ] Worker de webhooks separado.
+- [ ] Conciliación contable.
+- [ ] Integración con `mobile/`.
+
+## Criterio de cierre
+
+Una tarea backend está terminada cuando compila, pasa pruebas, respeta el aislamiento por tenant, documenta su contrato y no rompe `mobile/`.

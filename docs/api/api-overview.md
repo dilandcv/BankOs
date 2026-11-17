@@ -1,90 +1,96 @@
 # Visión general de la API — BankOS
 
-## Estado
-- **Implementado (auditado):** No hay API implementada. No existen controladores, rutas, ni especificación OpenAPI/Swagger en el repositorio.
-- **Decisión objetivo:** API REST sobre HTTP con JSON, versionada bajo `/api/v1`.
+> **Estado (2026-11-17):** implementada y publicada con OpenAPI. La fuente canónica está en [`backend/docs/api/api-overview.md`](../../backend/docs/api/api-overview.md).
 
-## Convenciones generales
+## Base
 
+- **URL local:** `http://localhost:8080`
 - **Base path:** `/api/v1`
-- **Formato:** JSON (`Content-Type: application/json`)
-- **Autenticación:** JWT Bearer (cuando el endpoint lo requiera)
-- **Trazabilidad:** `X-Correlation-ID` (UUID) en solicitudes y respuestas
-- **Idempotencia:** `Idempotency-Key` (UUID) en operaciones financieras; reintentos deben conservar **la misma llave y el mismo cuerpo**
+- **Formato:** JSON, nombres `snake_case`
+- **OpenAPI:** `/v3/api-docs`
+- **Swagger UI:** `/swagger-ui.html`
+- **Health:** `/actuator/health`
 
-### Headers
+## Autenticación
 
-**Generales:**
-```http
-Content-Type: application/json
-X-Correlation-ID: <UUID>
-Authorization: Bearer <JWT>
-```
+1. `POST /api/v1/auth/login` con `tenant_code`, `email` y `password`.
+2. Guardar un token por institución.
+3. Enviar `Authorization: Bearer <token>` en cada llamada.
+4. El backend extrae `tenant_id` y roles del JWT.
 
-**Operaciones financieras (adicional):**
-```http
-Idempotency-Key: <UUID>
-X-Correlation-ID: <UUID>
-```
+No se acepta `tenant_id` desde el body ni query params.
 
-## Formato de respuesta estandarizado (objetivo)
+## Headers
 
-**Éxito:**
+| Header | Uso |
+|---|---|
+| `Authorization` | JWT de la institución activa. |
+| `X-Correlation-ID` | Trazabilidad; el backend genera uno si falta. |
+| `Idempotency-Key` | Obligatorio en depósitos, retiros y transferencias. |
+
+## Respuesta exitosa
+
 ```json
 {
   "success": true,
-  "code": "OPERATION_SUCCESS",
-  "message": "Operación realizada correctamente",
+  "code": "DEPOSIT_COMPLETED",
+  "message": "Depósito realizado correctamente",
   "data": {},
-  "correlation_id": "uuid"
+  "correlation_id": "..."
 }
 ```
 
-**Error:**
+## Respuesta de error
+
 ```json
 {
   "success": false,
-  "code": "INSUFFICIENT_FUNDS",
-  "message": "Saldo insuficiente",
+  "code": "VALIDATION_ERROR",
+  "message": "La solicitud contiene errores",
   "data": null,
-  "correlation_id": "uuid"
+  "correlation_id": "..."
 }
 ```
 
-> Los códigos (`code`) concretos por endpoint son **propuestos/pendientes** y deben mantenerse consistentes entre backend y frontend.
+## Endpoints
 
-## Dominios funcionales (objetivo)
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/auth/login` | Login por institución |
+| `GET` | `/auth/me` | Usuario y tenant actuales |
+| `GET/POST` | `/tenants` | Instituciones |
+| `GET/POST` | `/users` | Usuarios del tenant |
+| `GET/POST` | `/customers` | Clientes |
+| `GET/POST` | `/accounts` | Cuentas |
+| `GET/PUT` | `/settings` | Configuración |
+| `GET/POST` | `/settings/exchange-rates` | Tasas |
+| `POST` | `/transactions/deposits` | Depósito |
+| `POST` | `/transactions/withdrawals` | Retiro |
+| `POST` | `/transactions/transfers` | Transferencia |
+| `POST` | `/transactions/transfers/preview` | Preview |
+| `GET` | `/transactions` | Historial |
+| `GET` | `/transactions/{id}` | Detalle |
+| `GET` | `/audit-logs` | Auditoría |
+| `GET/POST` | `/webhooks` | Webhooks |
+| `GET` | `/webhooks/events` | Outbox |
 
-La API debe cubrir contratos para:
-- Tenants
-- Autenticación
-- Usuarios
-- Clientes (customers)
-- Cuentas
-- Depósitos
-- Retiros
-- Transferencias
-- Preview de transferencias
-- Historial
-- Configuración (settings)
-- Auditoría
-- Webhooks
+## Paginación
 
-El detalle por endpoint se documenta en [Contratos de API](api-contracts.md).
+Parámetros `page`, `size`, `sort`. Respuesta:
 
-## Seguridad y multitenancy en la API
+```json
+{
+  "items": [],
+  "page": 0,
+  "size": 20,
+  "total_elements": 0,
+  "total_pages": 0
+}
+```
 
-- El `tenant` se determina desde el **contexto autenticado** (JWT/filtros de seguridad), nunca desde datos enviados por el cliente.
-- Autorización y validación de permisos se realizan en el backend.
-- Accesos a recursos de otro tenant deben ser denegados.
-- No se deben exponer entidades JPA ni detalles internos sensibles en respuestas.
+## Documentación relacionada
 
-## Versionado y evolución
-
-- Cambios incompatibles deben gestionarse mediante versionado (p. ej. `/api/v2`) o estrategia acordada. **Pendiente de definir política formal.**
-- Los contratos deben actualizarse en documentación antes o junto con la implementación.
-
-## Documentación OpenAPI/Swagger
-
-- **Estado actual:** No configurado.
-- **Objetivo:** Generar y exponer especificación OpenAPI en desarrollo para facilitar integración con Flutter y pruebas. 
+- [API overview detallada](../../backend/docs/api/api-overview.md)
+- [Contratos](api-contracts.md)
+- [Errores](error-handling.md)
+- [Autenticación](../security/authentication.md)

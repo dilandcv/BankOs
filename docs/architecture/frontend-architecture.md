@@ -1,135 +1,93 @@
 # Arquitectura del frontend — BankOS
 
+> **Estado (2026-11-17):** `mobile/` existe y funciona como prototipo con datos mock. **No fue modificado ni conectado al backend** en esta fase. La integración multi-banco es trabajo futuro.
+
+## Estado actual auditado
+
+- Proyecto Flutter en `mobile/` con estructura feature-first.
+- Dependencias actuales: `flutter_riverpod` y `go_router`.
+- `main.dart` usa `ProviderScope`; `app.dart` usa `ConsumerWidget` y `MaterialApp.router`.
+- Navegación centralizada en `core/router/app_router.dart`.
+- Pantallas: login, dashboard, cuentas, detalle de cuenta, transacciones, depósito, retiro, transferencia, preview y perfil.
+- Datos mock en `shared/constants/mock_data.dart`.
+- No hay cliente HTTP, almacenamiento seguro de tokens ni integración con el backend.
+- La app representa un solo banco; no existe selector de institución ni manejo de múltiples sesiones.
+
+## Estructura actual
+
+```text
+mobile/lib/
+├── main.dart
+├── app.dart
+├── core/
+│   └── router/app_router.dart
+├── features/
+│   ├── authentication/presentation/login_screen.dart
+│   ├── dashboard/presentation/dashboard_screen.dart
+│   ├── accounts/presentation/{accounts_screen,account_detail_screen}.dart
+│   ├── transactions/presentation/{transactions_screen,deposit_screen,withdrawal_screen,transfer_screen,transfer_preview_screen}.dart
+│   └── profile/presentation/profile_screen.dart
+└── shared/
+    ├── constants/{app_colors,mock_data}.dart
+    └── widgets/{app_scaffold,account_card,balance_card,primary_button,transaction_tile}.dart
+```
+
+## Navegación
+
+- GoRouter es el sistema de navegación.
+- Rutas actuales: login, dashboard, cuentas, detalle, transacciones, depósito, retiro, transferencia, preview y perfil.
+- No hay guardas de autenticación reales ni selección de banco.
+
 ## Estado
-- **Implementado (auditado):**
-  - Proyecto Flutter en `mobile/` con estructura de plataforma estándar.
-  - `mobile/lib/main.dart` contiene una app mínima (`MaterialApp` + "Hello World").
-  - `pubspec.yaml` solo incluye `flutter` y dev deps (`flutter_test`, `flutter_lints`). **No** incluye Riverpod, GoRouter, Dio, `flutter_secure_storage`, `local_auth`, ni `uuid`.
-- **Decisión objetivo:** Flutter con arquitectura **feature-first**, **Riverpod** para estado, **GoRouter** como única navegación, **Dio** para HTTP.
 
-## Decisiones obligatorias
+- Riverpod está configurado a nivel de app (`ProviderScope`).
+- No existen providers de sesión, cuentas o transacciones conectados a backend.
+- Las pantallas consumen datos mock.
 
-### Riverpod (gestión de estado)
-Debe utilizarse para:
-- Sesión del usuario y estado de autenticación.
-- Estados de carga y error.
-- Información de cuentas y saldos (vista).
-- Operaciones financieras (orquestación de UI/llamadas, sin lógica financiera de negocio).
-- Historiales y configuraciones.
+## Datos y red
 
-**Estado actual:** No configurado.
+- No hay Dio ni otro cliente HTTP.
+- No hay DTOs ni repositorios de API.
+- No hay `flutter_secure_storage`, `local_auth` ni `uuid`.
+- No se genera `Idempotency-Key` ni `X-Correlation-ID`.
 
-### GoRouter (navegación obligatoria)
-- **GoRouter será el único sistema principal de navegación.** No debe sustituirse por `Navigator` como mecanismo principal.
-- Configuración centralizada en `core/router/app_router.dart`.
-- Navegación declarativa, rutas con nombre cuando corresponda, rutas protegidas y redirecciones según autenticación.
-- Control de acceso según roles, gestión de sesión expirada, cierre de sesión con redirección a login.
-- Integración con Riverpod para reaccionar a cambios de sesión/rol.
-- Manejo de parámetros de ruta.
-- **Estado actual:** No implementado; la app usa `MaterialApp` directo.
+## Modelo multi-banco pendiente
 
-**Rutas iniciales propuestas:**
-```text
-/login
-/dashboard
-/accounts
-/accounts/:id
-/transactions
-/transactions/deposit
-/transactions/withdrawal
-/transactions/transfer
-/transactions/transfer/preview
-/profile
-```
-> La lista es inicial y puede ajustarse según el alcance; cualquier cambio debe reflejarse en esta documentación.
+La app debe evolucionar a la **Opción A**:
 
-### Dio (cliente HTTP)
-Responsabilidades objetivo:
-- Cliente HTTP centralizado, configuración de base URL y timeouts.
-- Interceptores para: `Authorization: Bearer <JWT>`, `X-Correlation-ID`, `Idempotency-Key` (operaciones financieras).
-- Manejo centralizado de errores y mapeo a estados de UI.
-- Reintentos **seguros**: una operación financiera reintentada debe conservar la **misma `Idempotency-Key` y el mismo cuerpo** de solicitud.
+1. Selector de institución.
+2. Login por institución (`tenant_code + email + password`).
+3. Guardar un token por banco de forma segura.
+4. Cambiar de sesión sin volver a autenticarse.
+5. Aplicar branding del tenant (`primary_color`, `secondary_color`, `logo_url`).
+6. Enviar el token de la institución activa en cada llamada.
+7. Conservar `Idempotency-Key` y el mismo cuerpo en reintentos financieros.
 
-**Estado actual:** No configurado.
+Ver [modelo multi-banco](multi-bank-model.md).
 
-### Almacenamiento seguro
-- **Flutter Secure Storage** para datos sensibles de sesión (tokens).
-- **Prohibido** almacenar JWT en `SharedPreferences`.
-- **Local Auth** para autenticación biométrica (objetivo, pendiente de integración).
+## Integración futura con el backend
 
-**Estado actual:** No configurado.
+- Base URL: `http://localhost:8080` en desarrollo.
+- Base path: `/api/v1`.
+- Login: `POST /api/v1/auth/login`.
+- Header: `Authorization: Bearer <token>`.
+- Operaciones financieras: `Idempotency-Key`.
+- Errores: mapear `code` y conservar `correlation_id`.
+- No enviar `tenant_id` desde la app.
 
-## Estructura propuesta (feature-first)
+## Pendiente
 
-```text
-mobile/
-└── lib/
-    ├── main.dart
-    ├── app.dart                      (propuesto: bootstrap de la app)
-    │
-    ├── core/
-    │   ├── config/                   (entornos, constantes de app)
-    │   ├── network/                  (cliente Dio, interceptores)
-    │   ├── storage/                  (secure storage, wrappers)
-    │   ├── router/
-    │   │   └── app_router.dart      (GoRouter centralizado)
-    │   ├── security/                 (helpers de sesión/claims si aplica)
-    │   └── errors/                   (tipos y mapeo de errores)
-    │
-    ├── features/
-    │   ├── authentication/
-    │   ├── dashboard/
-    │   ├── accounts/
-    │   ├── transactions/
-    │   ├── history/
-    │   └── profile/
-    │
-    └── shared/
-        ├── widgets/
-        ├── models/
-        └── constants/
-```
+- Agregar `dio`, `flutter_secure_storage`, `local_auth` y `uuid`.
+- Implementar sesión multi-token y selector de banco.
+- Crear cliente HTTP con interceptores.
+- Reemplazar mocks por repositorios reales.
+- Guardas de navegación y manejo de sesión expirada.
+- Pruebas de integración y E2E.
+- Branding dinámico por institución.
 
-> **Nota:** La estructura actual solo contiene `lib/main.dart`. La migración a esta estructura es **pendiente**.
+## Reglas
 
-## Organización por feature (patrón propuesto)
-
-Cada feature puede incluir, según necesidad:
-- `presentation/` (screens/widgets)
-- `providers/` o `state/` (Riverpod providers/notifiers)
-- `data/` (repositories, data sources, DTOs/modelos de API)
-- `domain/` (modelos de UI/dominio ligero, si aplica)
-
-**Reglas:**
-- Separar presentación y acceso a datos (repositories para API).
-- No implementar lógica financiera en Flutter; el backend es la autoridad.
-- Reutilizar widgets compartidos en `shared/widgets`.
-
-## Integración GoRouter + Riverpod + sesión (objetivo)
-
-- Un provider de autenticación/sesión expondrá estado (anónimo, autenticado, expirado, cargando).
-- `app_router.dart` consumirá ese estado (vía `refreshListenable`/`redirect` o patrón equivalente soportado por la versión de GoRouter usada) para:
-  - Redirigir usuarios no autenticados a `/login`.
-  - Restringir rutas por rol cuando aplique.
-  - Manejar expiración de sesión y forzar redirección a login.
-  - Limpiar estado y navegar a `/login` en cierre de sesión.
-
-**Pendiente:** Selección de versiones compatibles de paquetes y patrón exacto de integración (GoRouter cambia APIs entre versiones).
-
-## Reglas de implementación
-
-- No usar `Navigator.push()` como mecanismo principal de navegación.
+- No implementar lógica financiera en Flutter.
 - No almacenar JWT en `SharedPreferences`.
-- Conservar `Idempotency-Key` y cuerpo durante reintentos de operaciones financieras.
-- Manejo centralizado de errores de red y sesión.
-
-## Dependencias a agregar (pendiente)
-
-En `pubspec.yaml` deberán incluirse, entre otras: `flutter_riverpod` (o `riverpod` según enfoque), `go_router`, `dio`, `flutter_secure_storage`, `local_auth`, `uuid`. Las versiones exactas deben elegirse por compatibilidad con el SDK (`^3.13.7` observado) y documentarse.
-
-## Pendientes inmediatos
-
-1. Actualizar `pubspec.yaml` con dependencias obligatorias y ejecutar resolución.
-2. Crear `app_router.dart` y migrar `main.dart` a usar `MaterialApp.router`.
-3. Implementar cliente Dio con interceptores y almacenamiento seguro.
-4. Definir providers base de sesión y manejo de errores. 
+- No usar `Navigator.push()` como mecanismo principal.
+- No modificar el backend desde el frontend ni asumir contratos no documentados.

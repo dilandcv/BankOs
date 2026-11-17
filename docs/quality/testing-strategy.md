@@ -1,44 +1,51 @@
 # Estrategia de pruebas — BankOS
 
-## Estado
-- **Implementado (auditado):** No se observaron suites de pruebas significativas implementadas para el dominio de BankOS. Frontend es plantilla mínima (estructura de test por defecto posible, no verificada en ejecución). Backend inexistente.
-- **Ejecución:** **No se ejecutaron pruebas** durante esta auditoría documental (restricción: no ejecutar/cambiar entorno de forma no requerida; foco en documentación).
-- **Objetivo:** Cobertura adecuada de lógica crítica, seguridad multitenant e integridad financiera.
+> **Estado (2026-11-17):** base implementada. La fuente canónica está en [`backend/docs/quality/testing-strategy.md`](../../backend/docs/quality/testing-strategy.md).
 
-## Backend (objetivo)
+## Backend
 
-### Herramientas y tipos
-- **JUnit 5** para pruebas unitarias e integración.
-- **Spring Boot Test** / slices (`@WebMvcTest`, `@DataJpaTest`, etc.) según corresponda.
-- Pruebas de repositorios con base de datos de prueba (Testcontainers o equivalente, propuesto).
-- Pruebas de autenticación y autorización (Spring Security).
-- Pruebas de aislamiento multitenant.
-- Pruebas de concurrencia (operaciones simultáneas sobre cuentas/saldos).
-- Pruebas de idempotencia (misma `Idempotency-Key` y cuerpo).
+| Tipo | Herramienta | Estado |
+|---|---|---|
+| Unitarias | JUnit 5, AssertJ | Implementado |
+| Integración | Spring Boot Test, Testcontainers, PostgreSQL | Implementado |
+| Seguridad | Login, JWT y aislamiento entre tenants | Implementado (base) |
+| Concurrencia | Pruebas paralelas de idempotencia | Pendiente |
+| Contrato | OpenAPI / cliente generado | Pendiente |
+| Carga | k6 / Gatling / JMeter | Pendiente |
 
-### Enfoque
-- Unitarias para reglas de negocio/validaciones en servicios.
-- Integración para flujos completos (controller → service → repository → BD).
-- Verificar atomicidad y rollback en fallos financieros.
-- Validar que no haya efectos secundarios en operaciones rechazadas (ej. saldo insuficiente).
+## Cobertura actual
 
-## Frontend (objetivo)
+- `MoneyUtilsTest`: redondeo y escalas.
+- `TransactionApiIntegrationTest`: login, depósito, replay idempotente, conflicto de idempotencia, historial con filtros y aislamiento entre tenants.
+- Total actual: **3 unitarias + 4 de integración**.
 
-### Herramientas y tipos
-- **Flutter Test** (unit/widget).
-- Pruebas de widgets para componentes y pantallas clave.
-- Pruebas de navegación **GoRouter** (guards, redirects, parámetros, sesión expirada).
-- Pruebas de providers/notifiers **Riverpod** (estados loading/error/data, sesión).
-- Pruebas de integración con API (mock de Dio o entorno de prueba), incluyendo manejo de errores y headers.
+## Comando
 
-### Enfoque
-- Validar flujos de autenticación y protección de rutas.
-- Verificar que reintentos financieros preserven `Idempotency-Key` y payload (cuando se implemente).
-- Confirmar que no se almacenen secretos en almacenamiento inseguro.
+```bash
+docker run --rm \
+  -v "$PWD/backend":/workspace \
+  -v "$HOME/.m2":/root/.m2 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -w /workspace \
+  maven:3.9-eclipse-temurin-21 \
+  mvn -B test
+```
 
-## Infraestructura y entorno de pruebas (pendiente)
-- Definir perfiles de prueba, datos semilla y estrategia de aislamiento de BD.
-- Integrar ejecución en CI cuando esté disponible.
+## Frontend
 
-## Riesgos actuales
-- Sin automatización de pruebas del dominio, los regresos en seguridad financiera y multitenancy son altamente probables durante la hackatón. Priorizar pruebas de aceptación críticas tan pronto haya implementación. 
+`mobile/` no fue modificado. Sus pruebas actuales corresponden al prototipo con datos mock y no cubren integración con el backend.
+
+## Pendiente
+
+- Pruebas de concurrencia y transferencias simultáneas.
+- Pruebas de contrato contra OpenAPI.
+- Pruebas de carga y estrés.
+- Pruebas de webhooks/outbox y reintentos.
+- Pruebas end-to-end cuando se integre el frontend.
+- Umbral de cobertura y análisis estático en CI.
+
+## Documentación relacionada
+
+- [Testing del backend](../../backend/docs/quality/testing-strategy.md)
+- [Definition of Done](definition-of-done.md)
+- [Criterios de aceptación](acceptance-criteria.md)

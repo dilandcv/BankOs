@@ -1,38 +1,40 @@
 # Multitenancy — BankOS
 
-## Estado
-- **Implementado (auditado):** No existe multitenancy implementado. No hay modelo de tenants, ni filtrado por tenant, ni contexto de seguridad.
-- **Objetivo:** Aislamiento lógico estricto entre instituciones financieras dentro de la misma plataforma.
+> **Estado (2026-11-17):** implementado con aislamiento lógico. La fuente canónica está en [`backend/docs/security/multitenancy.md`](../../backend/docs/security/multitenancy.md).
 
-## Principio fundamental
-- **Nunca confiar en el `tenant_id` enviado por Flutter o cualquier cliente.**
-- El `tenant_id` debe obtenerse **exclusivamente** del contexto autenticado (JWT validado y/o contexto de seguridad resuelto en backend).
+## Modelo
 
-## Estrategia objetivo
-- Modelo de datos con `tenant_id` en entidades de negocio (`users`, `customers`, `accounts`, `transactions`, `audit_logs`, etc.).
-- Resolución de tenant por solicitud en capa de seguridad/filtros.
-- Propagación del tenant al contexto de ejecución (ej. `SecurityContext`, holder por request) y uso obligatorio en servicios/repositorios.
-- Consultas y escrituras siempre acotadas al tenant autenticado.
-- Respuestas `403/404` apropiadas ante intentos de acceso cruzado (política a definir, evitando filtración de información).
+- Cada institución es un tenant.
+- Cada usuario pertenece a un solo tenant.
+- `PLATFORM_ADMIN` pertenece al tenant reservado `PLATFORM`.
+- Los datos de negocio llevan `tenant_id`.
 
-## Validaciones requeridas
-- Autenticación válida y tenant activo.
-- Usuario pertenece al tenant del token.
-- Todo recurso accedido (cuenta, transacción, cliente, configuración) pertenece al tenant autenticado.
-- Operaciones financieras solo entre recursos permitidos por reglas del tenant (según diseño).
+## Fuente del tenant
 
-## Consideraciones de implementación (propuestas)
-- Filtros JPA/Hibernate, especificaciones con predicado de tenant, o capa de repositorio que exija tenant explícito.
-- Pruebas automatizadas de aislamiento (tenant A no puede leer/modificar datos de tenant B).
-- Índices compuestos por `(tenant_id, ...)` para rendimiento y consistencia de consultas.
+El `tenant_id` se obtiene exclusivamente del JWT. **Nunca** se acepta del body, query params o headers del cliente.
 
-## Riesgos a evitar
-- Endpoints que acepten `tenant_id` como parámetro de confianza.
-- Consultas sin filtro de tenant.
-- Cachés compartidos sin partición por tenant.
-- Logs o errores que expongan datos de otros tenants.
+`TenantContext` expone el tenant autenticado a servicios y repositorios.
 
-## Pendientes
-- Definir comportamiento exacto ante acceso no autorizado (403 vs 404).
-- Implementar mecanismo técnico de enforcement en backend.
-- Validar aislamiento en pruebas de integración y aceptación. 
+## Aislamiento
+
+- Repositorios y servicios filtran explícitamente por `tenant_id`.
+- No hay RLS de PostgreSQL en el MVP.
+- Un recurso de otro tenant responde `404` para no revelar su existencia.
+- Las pruebas de integración cubren acceso cruzado entre `BANCO_HORIZONTE` y `NEQUI`.
+
+## Datos por tenant
+
+Instituciones, usuarios, clientes, cuentas, transacciones, configuración, tasas, auditoría y webhooks están acotados por tenant.
+
+## Pendiente
+
+- RLS de PostgreSQL.
+- Cifrado por tenant.
+- Prefijo de tenant en claves Redis.
+- Auditoría de accesos cross-tenant a nivel de infraestructura.
+
+## Documentación relacionada
+
+- [Multitenancy del backend](../../backend/docs/security/multitenancy.md)
+- [Autenticación](authentication.md)
+- [Modelo multi-banco](../architecture/multi-bank-model.md)
