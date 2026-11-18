@@ -83,11 +83,36 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
+    final path = options.path;
+    final isPlatformPath = path.startsWith('/banks') ||
+        path.startsWith('/user/banks') ||
+        path == ApiEndpoints.authExchangeBankToken;
+
+    if (isPlatformPath) {
+      final masterSession = await _store.readMasterSession();
+      if (masterSession != null &&
+          masterSession.accessToken.isNotEmpty &&
+          !masterSession.isExpired()) {
+        options.headers['Authorization'] =
+            'Bearer ${masterSession.accessToken}';
+        handler.next(options);
+        return;
+      }
+    }
+
     final session = await _store.readActiveSession();
     if (session != null &&
         session.accessToken.isNotEmpty &&
         !session.isExpired()) {
       options.headers['Authorization'] = 'Bearer ${session.accessToken}';
+    } else {
+      final masterSession = await _store.readMasterSession();
+      if (masterSession != null &&
+          masterSession.accessToken.isNotEmpty &&
+          !masterSession.isExpired()) {
+        options.headers['Authorization'] =
+            'Bearer ${masterSession.accessToken}';
+      }
     }
     handler.next(options);
   }

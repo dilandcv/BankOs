@@ -10,9 +10,9 @@ import 'package:mobile/features/audit/presentation/audit_screen.dart';
 import 'package:mobile/features/authentication/presentation/login_screen.dart';
 import 'package:mobile/features/customers/presentation/customers_screen.dart';
 import 'package:mobile/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:mobile/features/dashboard/presentation/master_dashboard_screen.dart';
 import 'package:mobile/features/profile/presentation/profile_screen.dart';
 import 'package:mobile/features/settings/presentation/settings_screen.dart';
-import 'package:mobile/features/tenants/presentation/banks_screen.dart';
 import 'package:mobile/features/tenants/presentation/tenants_admin_screen.dart';
 import 'package:mobile/features/transactions/presentation/deposit_screen.dart';
 import 'package:mobile/features/transactions/presentation/transaction_detail_screen.dart';
@@ -37,8 +37,8 @@ bool canAccessAdminPath(UserSummary user, String path) {
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final session = ref.watch(sessionControllerProvider).value;
-  final isLoggedIn = session != null;
+  final isMasterLoggedIn = ref.watch(isMasterAuthenticatedProvider);
+  final activeBankSession = ref.watch(sessionControllerProvider).value;
 
   return GoRouter(
     initialLocation: '/login',
@@ -46,10 +46,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final location = state.matchedLocation;
       final goingToLogin = location == '/login';
 
-      if (!isLoggedIn && !goingToLogin) return '/login';
-      if (isLoggedIn && goingToLogin) return '/dashboard';
-      final user = session?.user;
-      if (isLoggedIn && location.startsWith('/admin') && user != null) {
+      if (!isMasterLoggedIn && !goingToLogin) return '/login';
+      if (isMasterLoggedIn && goingToLogin) return '/hub';
+
+      // Si intenta ingresar a un módulo bancario sin haber elegido un banco activo
+      if (isMasterLoggedIn &&
+          (location == '/dashboard' ||
+              location == '/accounts' ||
+              location == '/transactions') &&
+          activeBankSession == null) {
+        return '/hub';
+      }
+
+      final user = activeBankSession?.user;
+      if (isMasterLoggedIn && location.startsWith('/admin') && user != null) {
         if (!canAccessAdminPath(user, location)) return '/forbidden';
       }
       return null;
@@ -57,10 +67,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/login',
-        builder: (context, state) => LoginScreen(
-          initialTenantCode:
-              state.extra is String ? state.extra as String : null,
-        ),
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/hub',
+        builder: (context, state) => const MasterDashboardScreen(),
       ),
       GoRoute(
         path: '/forbidden',
@@ -107,7 +118,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Se declara al final para que no capture 'deposit'/'transfer'.
           GoRoute(
             path: ':id',
             builder: (context, state) => TransactionDetailScreen(
@@ -122,7 +132,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/banks',
-        builder: (context, state) => const BanksScreen(),
+        builder: (context, state) => const MasterDashboardScreen(),
       ),
       GoRoute(
         path: '/admin',

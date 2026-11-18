@@ -27,6 +27,16 @@ class TenantTheme {
     );
   }
 
+  factory TenantTheme.fromLinkedBank(LinkedBankModel? bank) {
+    if (bank == null) return fallback();
+    return TenantTheme(
+      primary: parseHex(bank.primaryColor) ?? AppColors.primary,
+      secondary: parseHex(bank.secondaryColor) ?? AppColors.primaryDark,
+      logoUrl: bank.logoUrl,
+      tenantName: bank.tenantName,
+    );
+  }
+
   static TenantTheme fallback() => const TenantTheme(
         primary: AppColors.primary,
         secondary: AppColors.primaryDark,

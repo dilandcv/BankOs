@@ -42,11 +42,43 @@ class SecureSessionStore {
   static const String sessionPrefix = 'bankos.session.';
   static const String activeTenantKey = 'bankos.active_tenant';
   static const String biometricPrefix = 'bankos.biometric.';
+  static const String masterSessionKey = 'bankos.master_session';
+  static const String masterBiometricKey = 'bankos.master_biometric';
 
   SecureSessionStore({SessionStorage? storage})
       : _storage = storage ?? const FlutterSecureSessionStorage();
 
   final SessionStorage _storage;
+
+  Future<void> saveMasterSession(MasterSession session) async {
+    await _storage.write(key: masterSessionKey, value: session.serialize());
+  }
+
+  Future<MasterSession?> readMasterSession() async {
+    final raw = await _storage.read(key: masterSessionKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return MasterSession.deserialize(raw);
+    } catch (_) {
+      await _storage.delete(key: masterSessionKey);
+      return null;
+    }
+  }
+
+  Future<void> clearMasterSession() => _storage.delete(key: masterSessionKey);
+
+  Future<bool> isMasterBiometricEnabled() async {
+    final value = await _storage.read(key: masterBiometricKey);
+    return value == '1';
+  }
+
+  Future<void> setMasterBiometricEnabled(bool enabled) async {
+    if (enabled) {
+      await _storage.write(key: masterBiometricKey, value: '1');
+    } else {
+      await _storage.delete(key: masterBiometricKey);
+    }
+  }
 
   String sessionKey(String tenantCode) =>
       '$sessionPrefix${tenantCode.trim().toUpperCase()}';
@@ -125,7 +157,9 @@ class SecureSessionStore {
     for (final key in all.keys) {
       if (key.startsWith(sessionPrefix) ||
           key.startsWith(biometricPrefix) ||
-          key == activeTenantKey) {
+          key == activeTenantKey ||
+          key == masterSessionKey ||
+          key == masterBiometricKey) {
         await _storage.delete(key: key);
       }
     }

@@ -43,7 +43,51 @@ final biometricServiceProvider = Provider<BiometricService>((ref) {
   return BiometricService();
 });
 
-/// Sesión del banco activo. `null` significa que hay que hacer login.
+/// Controlador de la sesión maestra de BankOS.
+final masterSessionControllerProvider =
+    AsyncNotifierProvider<MasterSessionController, MasterSession?>(
+        MasterSessionController.new);
+
+class MasterSessionController extends AsyncNotifier<MasterSession?> {
+  @override
+  Future<MasterSession?> build() async {
+    final store = ref.watch(secureSessionStoreProvider);
+    final session = await store.readMasterSession();
+    if (session == null) return null;
+    if (session.isExpired()) {
+      await store.clearMasterSession();
+      return null;
+    }
+    return session;
+  }
+
+  Future<void> setSession(MasterSession session) async {
+    final store = ref.read(secureSessionStoreProvider);
+    await store.saveMasterSession(session);
+    state = AsyncData(session);
+  }
+
+  Future<void> reloadLinkedBanks() async {
+    final current = state.value;
+    if (current == null) return;
+    try {
+      final banks = await ref.read(authRepositoryProvider).getLinkedBanks();
+      final updated = current.copyWith(linkedBanks: banks);
+      await ref.read(secureSessionStoreProvider).saveMasterSession(updated);
+      state = AsyncData(updated);
+    } catch (_) {
+      // Ignora error si falla red para no desloguear
+    }
+  }
+
+  Future<void> logout() async {
+    await ref.read(authRepositoryProvider).logoutAll();
+    ref.read(sessionControllerProvider.notifier).clearActiveBank();
+    state = const AsyncData(null);
+  }
+}
+
+/// Sesión del banco activo. `null` significa que el usuario está en el Hub de BankOS.
 final sessionControllerProvider =
     AsyncNotifierProvider<SessionController, AuthSession?>(SessionController.new);
 
@@ -82,16 +126,23 @@ class SessionController extends AsyncNotifier<AuthSession?> {
     });
   }
 
-  Future<void> switchTenant(String tenantCode) async {
-    final session = await ref
-        .read(authRepositoryProvider)
-        .switchTenant(tenantCode);
+  /// Cambia al banco especificado canjeando el token si es necesario.
+  Future<AuthSession> switchBank(String tenantCode) async {
+    final repo = ref.read(authRepositoryProvider);
+    final session = await repo.switchTenant(tenantCode);
     state = AsyncData(session);
+    return session;
+  }
+
+  Future<void> switchTenant(String tenantCode) => switchBank(tenantCode);
+
+  Future<void> clearActiveBank() async {
+    await ref.read(secureSessionStoreProvider).clearActiveTenant();
+    state = const AsyncData(null);
   }
 
   Future<void> logoutActive() async {
-    await ref.read(authRepositoryProvider).logoutActive();
-    state = const AsyncData(null);
+    await clearActiveBank();
   }
 
   Future<void> logoutTenant(String tenantCode) async {
@@ -101,24 +152,34 @@ class SessionController extends AsyncNotifier<AuthSession?> {
     if (active == null) state = const AsyncData(null);
   }
 
-  /// El interceptor ya limpió el tenant activo ante un 401; reflejamos el cambio.
   Future<void> handleUnauthorized() => refresh();
 }
 
-final isAuthenticatedProvider = Provider<bool>((ref) {
-  return ref.watch(sessionControllerProvider).value != null;
+final isMasterAuthenticatedProvider = Provider<bool>((ref) {
+  return ref.watch(masterSessionControllerProvider).value != null;
 });
 
-/// Tema del banco activo (se aplicará en F3).
+final isAuthenticatedProvider = Provider<bool>((ref) {
+  return ref.watch(isMasterAuthenticatedProvider);
+});
+
+final linkedBanksProvider = Provider<List<LinkedBankModel>>((ref) {
+  return ref.watch(masterSessionControllerProvider).value?.linkedBanks ?? const [];
+});
+
+/// Tema dinámico: Si hay banco activo, usa los colores del banco; si no, usa BankOS Platform.
 final tenantThemeProvider = Provider<TenantTheme>((ref) {
-  final session = ref.watch(sessionControllerProvider).value;
-  return TenantTheme.fromSession(session);
+  final bankSession = ref.watch(sessionControllerProvider).value;
+  if (bankSession != null) {
+    return TenantTheme.fromSession(bankSession);
+  }
+  return TenantTheme.fallback();
 });
 
 /// Se incrementa tras una operación financiera para recargar saldos e historial.
 final dataVersionProvider = StateProvider<int>((ref) => 0);
 
-/// Mensaje de error global para mostrar en sn bars sin acoplar al widget.
+/// Mensaje de error global para mostrar en snackbars sin acoplar al widget.
 final userMessageProvider = StateProvider<String?>((ref) => null);
 
 void showApiError(WidgetRef ref, Object error) {
