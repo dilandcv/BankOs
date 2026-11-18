@@ -41,6 +41,7 @@ mobile/**/generated_plugin_registrant.*
 
 # Android
 mobile/android/.gradle/
+mobile/android/.kotlin/
 mobile/android/local.properties
 mobile/android/**/build/
 mobile/android/**/.cxx/

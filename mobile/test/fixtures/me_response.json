@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "code": "AUTH_ME",
+  "message": "Sesión actual",
+  "data": {
+    "user": {
+      "id": "10000000-0000-0000-0000-000000000009",
+      "email": "admin@horizonte.com",
+      "full_name": "Admin Banco Horizonte",
+      "role": "TENANT_ADMIN"
+    },
+    "tenant": {
+      "id": "00000000-0000-0000-0000-000000000007",
+      "code": "BANCO_HORIZONTE",
+      "name": "Banco Horizonte",
+      "primary_color": "#0070BA",
+      "secondary_color": "#003087",
+      "logo_url": null
+    }
+  },
+  "correlation_id": "551f86ae-7f5d-4985-9cdc-cd0e1409dce7"
+}

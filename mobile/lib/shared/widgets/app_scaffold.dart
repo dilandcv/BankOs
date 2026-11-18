@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/shared/constants/app_colors.dart';
@@ -39,7 +39,7 @@ class AppScaffold extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryDark,
+        backgroundColor: Theme.of(context).colorScheme.secondary,
         foregroundColor: AppColors.textOnPrimary,
         elevation: 0,
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -50,7 +50,7 @@ class AppScaffold extends ConsumerWidget {
               currentIndex: currentIndex,
               onTap: (i) => _onNavTap(context, i),
               type: BottomNavigationBarType.fixed,
-              selectedItemColor: AppColors.primary,
+              selectedItemColor: Theme.of(context).colorScheme.primary,
               unselectedItemColor: AppColors.textSecondary,
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Inicio'),

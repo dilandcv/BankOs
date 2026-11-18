@@ -1,14 +1,110 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/network/api_exception.dart';
+import 'package:mobile/core/network/idempotency_key.dart';
+import 'package:mobile/core/providers.dart';
+import 'package:mobile/features/accounts/data/account.dart';
+import 'package:mobile/features/accounts/data/accounts_providers.dart';
+import 'package:mobile/features/transactions/data/transactions_providers.dart';
 import 'package:mobile/shared/constants/app_colors.dart';
+import 'package:mobile/shared/utils/money_formatter.dart';
+import 'package:mobile/shared/widgets/account_selector.dart';
 import 'package:mobile/shared/widgets/primary_button.dart';
 
-class DepositScreen extends ConsumerWidget {
-  const DepositScreen({super.key});
+class DepositScreen extends ConsumerStatefulWidget {
+  const DepositScreen({super.key, this.initialAccountId});
+
+  final String? initialAccountId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DepositScreen> createState() => _DepositScreenState();
+}
+
+class _DepositScreenState extends ConsumerState<DepositScreen> {
+  final _amountController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _keys = IdempotencyKeyKeeper();
+
+  String? _accountId;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _accountId = widget.initialAccountId;
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _submit(List<AccountModel> accounts) async {
+    final accountId = _accountId;
+    if (accountId == null) {
+      _showMessage('Selecciona la cuenta destino');
+      return;
+    }
+    final matching = accounts.where((a) => a.id == accountId).toList();
+    if (matching.isEmpty) {
+      _showMessage('La cuenta seleccionada ya no está disponible');
+      return;
+    }
+
+    final amount = MoneyFormatter.normalizeInput(_amountController.text);
+    if (amount.isEmpty || amount.startsWith('-') || amount == '0.00') {
+      _showMessage('Ingresa un monto mayor que cero');
+      return;
+    }
+
+    final currency = matching.first.currency;
+    final description = _descriptionController.text.trim();
+    final body = <String, dynamic>{
+      'account_id': accountId,
+      'amount': amount,
+      'currency': currency,
+      'description': description,
+    };
+
+    setState(() => _loading = true);
+    try {
+      await ref.read(transactionsRepositoryProvider).deposit(
+            accountId: accountId,
+            amount: amount,
+            currency: currency,
+            description: description,
+            idempotencyKey: _keys.nextKey(body),
+          );
+      ref.read(dataVersionProvider.notifier).state++;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Depósito realizado')),
+      );
+      context.go('/transactions');
+    } on ApiException catch (error) {
+      _showMessage(error.displayMessage);
+    } catch (_) {
+      _showMessage('No se pudo completar el depósito');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accountsAsync = ref.watch(accountsProvider);
+    final accounts = accountsAsync.value ?? const <AccountModel>[];
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Depósito')),
@@ -20,36 +116,44 @@ class DepositScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text('Datos del depósito', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                  SizedBox(height: 14),
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: 'Cuenta destino',
-                      hintText: 'Selecciona una cuenta',
-                      prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                children: [
+                  const Text(
+                    'Datos del depósito',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 14),
+                  if (accountsAsync.isLoading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (accountsAsync.hasError)
+                    Text(
+                      'No se pudieron cargar las cuentas: ${accountsAsync.error}',
+                      style: const TextStyle(color: AppColors.danger),
+                    )
+                  else
+                    AccountSelector(
+                      accounts: accounts,
+                      value: _accountId,
+                      label: 'Cuenta destino',
+                      onChanged: (value) => setState(() => _accountId = value),
+                    ),
+                  const SizedBox(height: 12),
                   TextField(
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
+                    controller: _amountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
                       labelText: 'Monto',
                       hintText: '0.00',
                       prefixIcon: Icon(Icons.attach_money),
                     ),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   TextField(
-                    decoration: InputDecoration(
-                      labelText: 'Moneda',
-                      hintText: 'USD',
-                      prefixIcon: Icon(Icons.currency_exchange),
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  TextField(
-                    decoration: InputDecoration(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(
                       labelText: 'Descripción',
                       hintText: 'Motivo del depósito',
                       prefixIcon: Icon(Icons.notes),
@@ -61,9 +165,10 @@ class DepositScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           PrimaryButton(
-            label: 'Continuar',
+            label: 'Confirmar depósito',
             icon: Icons.check_circle_outline,
-            onPressed: () => context.go('/transactions'),
+            loading: _loading,
+            onPressed: () => _submit(accounts),
           ),
           const SizedBox(height: 10),
           PrimaryButton(

@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "code": "TRANSACTIONS_LISTED",
+  "message": "Historial de transacciones",
+  "data": {
+    "items": [],
+    "page": 0,
+    "size": 5,
+    "total_elements": 0,
+    "total_pages": 0
+  },
+  "correlation_id": "83ff0360-e021-4b94-b928-a1bcba9c6c9d"
+}

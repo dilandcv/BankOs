@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "code": "ACCOUNTS_LISTED",
+  "message": "Todas las cuentas de la institución",
+  "data": [
+    {
+      "id": "30000000-0000-0000-0000-000000000001",
+      "customer_id": "20000000-0000-0000-0000-000000000001",
+      "account_number": "0000004821",
+      "currency": "USD",
+      "balance": "8250.0000",
+      "status": "ACTIVE",
+      "created_at": "2026-11-17T13:47:23.574942Z"
+    },
+    {
+      "id": "30000000-0000-0000-0000-000000000002",
+      "customer_id": "20000000-0000-0000-0000-000000000001",
+      "account_number": "0000009034",
+      "currency": "USD",
+      "balance": "3200.0000",
+      "status": "ACTIVE",
+      "created_at": "2026-11-17T13:47:23.574942Z"
+    },
+    {
+      "id": "30000000-0000-0000-0000-000000000003",
+      "customer_id": "20000000-0000-0000-0000-000000000001",
+      "account_number": "0000007710",
+      "currency": "EUR",
+      "balance": "920.0000",
+      "status": "ACTIVE",
+      "created_at": "2026-11-17T13:47:23.574942Z"
+    }
+  ],
+  "correlation_id": "7d9fd665-896c-41ec-bb98-54cd17985171"
+}

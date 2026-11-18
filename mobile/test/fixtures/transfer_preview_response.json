@@ -1,0 +1,17 @@
+{
+  "success": true,
+  "code": "TRANSFER_PREVIEW",
+  "message": "Vista previa de transferencia",
+  "data": {
+    "source_account_id": "30000000-0000-0000-0000-000000000001",
+    "target_account_id": "30000000-0000-0000-0000-000000000003",
+    "amount": "100.0000",
+    "source_currency": "USD",
+    "target_currency": "EUR",
+    "exchange_rate": "0.92000000",
+    "fee": "1.5000",
+    "debit_amount": "101.5000",
+    "credit_amount": "92.0000"
+  },
+  "correlation_id": "c77129b4-51be-4dc2-b8aa-d780bc5b65ef"
+}

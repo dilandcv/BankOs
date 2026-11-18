@@ -1,8 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/providers.dart';
+import 'package:mobile/features/accounts/data/accounts_providers.dart';
+import 'package:mobile/features/transactions/data/transactions_providers.dart';
 import 'package:mobile/shared/constants/app_colors.dart';
-import 'package:mobile/shared/constants/mock_data.dart';
+import 'package:mobile/shared/utils/money_formatter.dart';
 import 'package:mobile/shared/widgets/account_card.dart';
 import 'package:mobile/shared/widgets/app_scaffold.dart';
 import 'package:mobile/shared/widgets/balance_card.dart';
@@ -14,6 +17,15 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(sessionControllerProvider).value;
+    final accountsAsync = ref.watch(accountsProvider);
+    final transactionsAsync = ref.watch(transactionsProvider);
+    final accounts = accountsAsync.value ?? const [];
+    final transactions = transactionsAsync.value?.items ?? const [];
+
+    final currencies = accounts.map((account) => account.currency).toSet().toList()
+      ..sort();
+
     return AppScaffold(
       title: 'Inicio',
       showBottomNav: true,
@@ -21,20 +33,53 @@ class DashboardScreen extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Hola, ${MockData.userName}',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          Text(
+            'Hola, ${session?.user.fullName ?? 'usuario'}',
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 4),
-          const Text(MockData.tenantName, style: TextStyle(color: AppColors.textSecondary)),
-          const SizedBox(height: 16),
-          const BalanceCard(
-            title: 'Saldo total disponible',
-            amount: MockData.totalBalance,
-            subtitle: 'Todas tus cuentas activas',
+          Text(
+            session?.tenant.name ?? '',
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
-          const SizedBox(height: 20),
-          const Text('Accesos rápidos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          const SizedBox(height: 16),
+          if (accountsAsync.isLoading)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (accountsAsync.hasError)
+            _ErrorBox(message: 'No se pudieron cargar las cuentas: ${accountsAsync.error}')
+          else
+            ...currencies.map((currency) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: BalanceCard(
+                    title: 'Saldo disponible en $currency',
+                    amount: MoneyFormatter.format(
+                      MoneyFormatter.sum(
+                        accounts
+                            .where((account) => account.currency == currency)
+                            .map((account) => account.balance),
+                      ),
+                      currency: currency,
+                    ),
+                    subtitle: '${accounts.where((a) => a.currency == currency).length} '
+                        'cuenta(s) activa(s)',
+                  ),
+                )),
+          const SizedBox(height: 10),
+          const Text(
+            'Accesos rápidos',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -67,32 +112,73 @@ class DashboardScreen extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Mis cuentas', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-              TextButton(onPressed: () => context.go('/accounts'), child: const Text('Ver todas')),
+              const Text(
+                'Mis cuentas',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.go('/accounts'),
+                child: const Text('Ver todas'),
+              ),
             ],
           ),
-          ...MockData.accounts.take(2).map((a) => AccountCard(
-                name: a['name']!,
-                number: a['number']!,
-                balance: a['balance']!,
-                currency: a['currency']!,
-                status: a['status']!,
-                onTap: () => context.go('/accounts/${a['id']}'),
-              )),
+          if (accounts.isEmpty)
+            const _EmptyBox(message: 'Todavía no hay cuentas en este banco')
+          else
+            ...accounts.take(2).map(
+                  (account) => AccountCard(
+                    name: account.displayName,
+                    number: account.maskedNumber,
+                    balance: MoneyFormatter.format(account.balance,
+                        currency: account.currency),
+                    currency: account.currency,
+                    status: account.isActive ? 'Activa' : account.status,
+                    onTap: () => context.go('/accounts/${account.id}'),
+                  ),
+                ),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Últimos movimientos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-              TextButton(onPressed: () => context.go('/transactions'), child: const Text('Ver historial')),
+              const Text(
+                'Últimos movimientos',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.go('/transactions'),
+                child: const Text('Ver historial'),
+              ),
             ],
           ),
-          ...MockData.transactions.take(3).map((t) => TransactionTile(
-                title: t['title']!,
-                subtitle: t['subtitle']!,
-                amount: t['amount']!,
-                isIncoming: t['type'] == 'in',
-              )),
+          if (transactionsAsync.isLoading)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (transactions.isEmpty)
+            const _EmptyBox(message: 'Aún no hay movimientos')
+          else
+            ...transactions.take(3).map(
+                  (transaction) => TransactionTile(
+                    title: transaction.displayTitle,
+                    subtitle: transaction.displaySubtitle,
+                    amount: MoneyFormatter.format(
+                      transaction.amount,
+                      currency: transaction.currency,
+                      signed: transaction.type.toUpperCase() == 'DEPOSIT',
+                    ),
+                    isIncoming: transaction.isIncomingFor(null),
+                    onTap: () => context.go('/transactions/${transaction.id}'),
+                  ),
+                ),
           const SizedBox(height: 8),
           PrimaryButton(
             label: 'Ir a movimientos',
@@ -106,15 +192,19 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _QuickAction extends ConsumerWidget {
-  const _QuickAction({required this.icon, required this.label, required this.onTap});
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -129,10 +219,61 @@ class _QuickAction extends ConsumerWidget {
           children: [
             Icon(icon, color: AppColors.primary),
             const SizedBox(height: 6),
-            Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary, fontSize: 13)),
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+                fontSize: 13,
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _EmptyBox extends StatelessWidget {
+  const _EmptyBox({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: AppColors.textSecondary),
+      ),
+    );
+  }
+}
+
+class _ErrorBox extends StatelessWidget {
+  const _ErrorBox({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.danger),
+      ),
+      child: Text(message, style: const TextStyle(color: AppColors.danger)),
     );
   }
 }

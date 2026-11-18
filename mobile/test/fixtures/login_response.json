@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "code": "LOGIN_SUCCESS",
+  "message": "Sesión iniciada correctamente",
+  "data": {
+    "access_token": "<REDACTED>",
+    "token_type": "Bearer",
+    "expires_in": 3600,
+    "user": {
+      "id": "10000000-0000-0000-0000-000000000009",
+      "email": "admin@horizonte.com",
+      "full_name": "Admin Banco Horizonte",
+      "role": "TENANT_ADMIN"
+    },
+    "tenant": {
+      "id": "00000000-0000-0000-0000-000000000007",
+      "code": "BANCO_HORIZONTE",
+      "name": "Banco Horizonte",
+      "primary_color": "#0070BA",
+      "secondary_color": "#003087",
+      "logo_url": null
+    }
+  },
+  "correlation_id": "64427b9e-f927-430c-9214-b571b6f71bad"
+}
