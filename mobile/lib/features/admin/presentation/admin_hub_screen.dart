@@ -89,7 +89,10 @@ class AdminHubScreen extends ConsumerWidget {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: AppColors.surfaceMuted,
-                    child: Icon(item.icon, color: AppColors.primary),
+                    child: Icon(
+                      item.icon,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   title: Text(
                     item.title,

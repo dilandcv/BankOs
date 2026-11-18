@@ -32,8 +32,6 @@ class AccountDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryDark,
-        foregroundColor: Colors.white,
         title: Text(accountAsync.value?.displayName ?? 'Cuenta'),
       ),
       body: ListView(

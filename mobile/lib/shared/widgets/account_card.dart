@@ -44,7 +44,10 @@ class AccountCard extends ConsumerWidget {
                   color: AppColors.surfaceMuted,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.account_balance, color: AppColors.primary),
+                child: Icon(
+                  Icons.account_balance,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

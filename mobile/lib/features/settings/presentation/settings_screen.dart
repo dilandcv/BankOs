@@ -244,9 +244,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               (rate) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: AppColors.surfaceMuted,
-                    child: Icon(Icons.swap_horiz, color: AppColors.primary),
+                    child: Icon(
+                      Icons.swap_horiz,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   title: Text(
                     rate.pair,

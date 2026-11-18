@@ -155,9 +155,12 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
               (customer) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: AppColors.surfaceMuted,
-                    child: Icon(Icons.person_outline, color: AppColors.primary),
+                    child: Icon(
+                      Icons.person_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   title: Text(
                     customer.fullName,

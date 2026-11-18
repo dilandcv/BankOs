@@ -150,9 +150,12 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
               (hook) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: AppColors.surfaceMuted,
-                    child: Icon(Icons.webhook, color: AppColors.primary),
+                    child: Icon(
+                      Icons.webhook,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   title: Text(
                     hook.url,
@@ -216,7 +219,7 @@ class _WebhooksScreenState extends ConsumerState<WebhooksScreen> {
                           : Icons.send_outlined,
                       color: event.status.toUpperCase() == 'DEAD'
                           ? AppColors.danger
-                          : AppColors.primary,
+                          : Theme.of(context).colorScheme.primary,
                     ),
                   ),
                   title: Text(

@@ -240,7 +240,11 @@ class _OpCard extends StatelessWidget {
           children: [
             CircleAvatar(
               backgroundColor: AppColors.surfaceMuted,
-              child: Icon(icon, color: AppColors.primary, size: 20),
+              child: Icon(
+                icon,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
             ),
             const SizedBox(height: 8),
             Text(

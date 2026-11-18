@@ -103,9 +103,12 @@ class AuditScreen extends ConsumerWidget {
               (log) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: AppColors.surfaceMuted,
-                    child: Icon(Icons.fact_check_outlined, color: AppColors.primary),
+                    child: Icon(
+                      Icons.fact_check_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   title: Text(
                     log.action,

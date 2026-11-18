@@ -166,9 +166,12 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
               (user) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: AppColors.surfaceMuted,
-                    child: Icon(Icons.person_outline, color: AppColors.primary),
+                    child: Icon(
+                      Icons.person_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   title: Text(
                     user.fullName,
@@ -184,10 +187,10 @@ class _UsersScreenState extends ConsumerState<UsersScreen> {
                     children: [
                       Text(
                         user.role,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                       Text(

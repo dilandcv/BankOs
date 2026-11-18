@@ -39,7 +39,7 @@ class TransactionTile extends ConsumerWidget {
                 backgroundColor: AppColors.surfaceMuted,
                 child: Icon(
                   isIncoming ? Icons.south_west : Icons.north_east,
-                  color: AppColors.primary,
+                  color: Theme.of(context).colorScheme.primary,
                   size: 18,
                 ),
               ),

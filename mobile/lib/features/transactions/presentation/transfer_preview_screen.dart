@@ -215,7 +215,9 @@ class _TransferPreviewScreenState extends ConsumerState<TransferPreviewScreen> {
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontWeight: highlight ? FontWeight.bold : FontWeight.w600,
-                color: highlight ? AppColors.primaryDark : AppColors.textPrimary,
+                color: highlight
+                    ? Theme.of(context).colorScheme.primary
+                    : AppColors.textPrimary,
               ),
             ),
           ),

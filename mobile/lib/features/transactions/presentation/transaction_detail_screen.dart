@@ -68,7 +68,9 @@ class _DetailContent extends StatelessWidget {
                   backgroundColor: AppColors.surfaceMuted,
                   child: Icon(
                     incoming ? Icons.south_west : Icons.north_east,
-                    color: incoming ? AppColors.success : AppColors.primary,
+                    color: incoming
+                        ? AppColors.success
+                        : Theme.of(context).colorScheme.primary,
                     size: 26,
                   ),
                 ),
@@ -105,8 +107,8 @@ class _DetailContent extends StatelessWidget {
                   ),
                   child: Text(
                     transaction.status,
-                    style: const TextStyle(
-                      color: AppColors.primary,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                     ),

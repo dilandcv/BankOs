@@ -80,10 +80,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 36,
                     backgroundColor: AppColors.surfaceMuted,
-                    child: Icon(Icons.person, size: 36, color: AppColors.primary),
+                    child: Icon(
+                      Icons.person,
+                      size: 36,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -106,10 +110,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       color: AppColors.surfaceMuted,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Sesión activa',
                       style: TextStyle(
-                        color: AppColors.primary,
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
                       ),
@@ -133,7 +137,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Card(
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(
-              leading: const Icon(Icons.account_balance, color: AppColors.primary),
+              leading: Icon(
+                Icons.account_balance,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               title: const Text(
                 'Bancos y sesiones',
                 style: TextStyle(
@@ -152,7 +159,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Card(
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(
-              leading: const Icon(Icons.admin_panel_settings, color: AppColors.primary),
+              leading: Icon(
+                Icons.admin_panel_settings,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               title: const Text(
                 'Administración',
                 style: TextStyle(
@@ -171,7 +181,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           Card(
             margin: const EdgeInsets.only(bottom: 10),
             child: ListTile(
-              leading: const Icon(Icons.fingerprint, color: AppColors.primary),
+              leading: Icon(
+                Icons.fingerprint,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               title: const Text(
                 'Desbloqueo con biometría',
                 style: TextStyle(
@@ -224,7 +237,7 @@ class _ProfileTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        leading: Icon(icon, color: AppColors.primary),
+        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
         title: Text(
           title,
           style: const TextStyle(
