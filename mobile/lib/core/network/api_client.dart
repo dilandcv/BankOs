@@ -258,6 +258,53 @@ class ApiClient {
     );
   }
 
+  Future<ApiEnvelope<T>> put<T>(
+    String path, {
+    Object? data,
+    Map<String, dynamic>? headers,
+    T Function(dynamic data)? parse,
+  }) {
+    return request<T>(
+      path,
+      method: 'PUT',
+      data: data,
+      headers: headers,
+      parse: parse,
+    );
+  }
+
+  Future<ApiEnvelope<T>> patch<T>(
+    String path, {
+    Object? data,
+    Map<String, dynamic>? headers,
+    T Function(dynamic data)? parse,
+  }) {
+    return request<T>(
+      path,
+      method: 'PATCH',
+      data: data,
+      headers: headers,
+      parse: parse,
+    );
+  }
+
+  Future<ApiEnvelope<T>> delete<T>(
+    String path, {
+    Object? data,
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+    T Function(dynamic data)? parse,
+  }) {
+    return request<T>(
+      path,
+      method: 'DELETE',
+      data: data,
+      queryParameters: queryParameters,
+      headers: headers,
+      parse: parse,
+    );
+  }
+
   ApiEnvelope<T> _parseEnvelope<T>(
     Response<Map<String, dynamic>> response,
     T Function(dynamic data)? parse,

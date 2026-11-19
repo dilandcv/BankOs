@@ -72,3 +72,7 @@ coverage/
 *.swp
 *.swo
 *~
+
+# Contracts (Separate Git Repository: https://github.com/dilandcv/BankOs-contracts.git)
+/contracts/
+

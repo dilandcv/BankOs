@@ -1,6 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile/shared/constants/app_colors.dart';
 
 class BalanceCard extends ConsumerWidget {
   const BalanceCard({super.key, required this.title, required this.amount, this.subtitle});

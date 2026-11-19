@@ -44,5 +44,16 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Environment and secrets
+.env
+*.env.local
+*.jks
+*.keystore
+
+# Ephemeral plugin registrant
+**/generated_plugin_registrant.cc
+**/generated_plugin_registrant.h
+**/generated_plugins.cmake
+
 # Widget Preview related
 .widget_preview/
