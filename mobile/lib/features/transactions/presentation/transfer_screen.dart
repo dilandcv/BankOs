@@ -135,9 +135,13 @@ class _TransferScreenState extends ConsumerState<TransferScreen> {
                   TextField(
                     controller: _amountController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: const [
+                      ThousandsSeparatorInputFormatter(),
+                    ],
                     decoration: const InputDecoration(
                       labelText: 'Monto',
                       hintText: '0.00',
+                      helperText: 'Separadores de miles (,) y decimales (.) automáticos',
                       prefixIcon: Icon(Icons.attach_money),
                     ),
                   ),

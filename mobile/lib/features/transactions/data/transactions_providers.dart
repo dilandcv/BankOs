@@ -47,7 +47,11 @@ final transactionsRepositoryProvider = Provider<TransactionsRepository>((ref) {
 });
 
 final transactionFilterProvider =
-    StateProvider<TransactionFilter>((ref) => const TransactionFilter());
+    StateProvider<TransactionFilter>((ref) {
+  // Reiniciar el filtro al cambiar o cerrar la sesión del banco activo
+  ref.watch(sessionControllerProvider);
+  return const TransactionFilter();
+});
 
 final transactionsProvider =
     FutureProvider<PageResponse<TransactionModel>>((ref) async {

@@ -1,5 +1,7 @@
 import 'package:decimal/decimal.dart';
 
+export 'thousands_separator_input_formatter.dart';
+
 /// Toda cantidad viaja como `String`; las operaciones usan `Decimal`.
 class MoneyFormatter {
   MoneyFormatter._();
@@ -34,9 +36,11 @@ class MoneyFormatter {
   }
 
   /// Normaliza la entrada del usuario sin convertirla nunca a `double`.
+  /// Remueve separadores de miles (,) antes de procesar para el backend.
   static String normalizeInput(String value, {int scale = 2}) {
-    final parsed = Decimal.tryParse(value.trim());
-    if (parsed == null) return value.trim();
+    final clean = value.replaceAll(',', '').trim();
+    final parsed = Decimal.tryParse(clean);
+    if (parsed == null) return clean;
     return parsed.toStringAsFixed(scale);
   }
 

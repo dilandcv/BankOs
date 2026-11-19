@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/providers.dart';
@@ -36,13 +37,27 @@ bool canAccessAdminPath(UserSummary user, String path) {
   return true;
 }
 
+class RouterRefreshNotifier extends ChangeNotifier {
+  RouterRefreshNotifier(Ref ref) {
+    ref.listen(isMasterAuthenticatedProvider, (_, __) => notifyListeners());
+    ref.listen(sessionControllerProvider, (_, __) => notifyListeners());
+  }
+}
+
+final routerRefreshNotifierProvider = Provider<RouterRefreshNotifier>((ref) {
+  return RouterRefreshNotifier(ref);
+});
+
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final isMasterLoggedIn = ref.watch(isMasterAuthenticatedProvider);
-  final activeBankSession = ref.watch(sessionControllerProvider).value;
+  final refreshNotifier = ref.watch(routerRefreshNotifierProvider);
 
   return GoRouter(
     initialLocation: '/login',
+    refreshListenable: refreshNotifier,
     redirect: (context, state) {
+      final isMasterLoggedIn = ref.read(isMasterAuthenticatedProvider);
+      final activeBankSession = ref.read(sessionControllerProvider).value;
+
       final location = state.matchedLocation;
       final goingToLogin = location == '/login';
 

@@ -19,12 +19,15 @@ class AccountSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final validValue = accounts.any((account) => account.id == value)
+    final seenIds = <String>{};
+    final uniqueAccounts =
+        accounts.where((account) => seenIds.add(account.id)).toList();
+    final validValue = uniqueAccounts.any((account) => account.id == value)
         ? value
         : null;
 
     return DropdownButtonFormField<String?>(
-      initialValue: validValue,
+      value: validValue,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
@@ -34,7 +37,7 @@ class AccountSelector extends ConsumerWidget {
           value: null,
           child: Text('Selecciona una cuenta'),
         ),
-        ...accounts.map(
+        ...uniqueAccounts.map(
           (account) => DropdownMenuItem<String?>(
             value: account.id,
             child: Text('${account.displayName} · ${account.maskedNumber}'),

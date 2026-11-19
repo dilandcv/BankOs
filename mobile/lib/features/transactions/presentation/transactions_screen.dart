@@ -19,6 +19,14 @@ class TransactionsScreen extends ConsumerWidget {
     final accounts = ref.watch(accountsProvider).value ?? const [];
     final page = historyAsync.value;
 
+    final seenAccountIds = <String>{};
+    final uniqueAccounts =
+        accounts.where((a) => seenAccountIds.add(a.id)).toList();
+    final selectedAccountId =
+        uniqueAccounts.any((a) => a.id == filter.accountId)
+            ? filter.accountId
+            : null;
+
     void setType(String? type) {
       ref.read(transactionFilterProvider.notifier).state =
           filter.copyWith(page: 0, type: type, clearType: type == null);
@@ -93,14 +101,17 @@ class TransactionsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 10),
           DropdownButtonFormField<String?>(
-            initialValue: filter.accountId,
+            value: selectedAccountId,
             decoration: const InputDecoration(
               labelText: 'Filtrar por cuenta',
               prefixIcon: Icon(Icons.account_balance_wallet_outlined),
             ),
             items: [
-              const DropdownMenuItem<String?>(value: null, child: Text('Todas las cuentas')),
-              ...accounts.map(
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('Todas las cuentas'),
+              ),
+              ...uniqueAccounts.map(
                 (account) => DropdownMenuItem<String?>(
                   value: account.id,
                   child: Text('${account.displayName} · ${account.maskedNumber}'),
